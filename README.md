@@ -2,6 +2,12 @@
 
 A polished Mario-inspired platformer that runs entirely in your browser — no installs, no downloads, no asset files. All graphics are rendered live on an HTML5 canvas (parallax skies, particles, soft shadows, screen shake) and all music and sound effects are synthesized in real time with the Web Audio API.
 
+## Screenshots
+
+| World 1 — Green Hills | World 2 — Cavern Climb | World 3 — Sunset Fortress |
+|---|---|---|
+| ![Green Hills](screenshots/world1-green-hills.png) | ![Cavern Climb](screenshots/world2-cavern-climb.png) | ![Sunset Fortress](screenshots/world3-sunset-fortress.png) |
+
 ## How to play
 
 1. Open **Command Prompt** (press `Win`, type `cmd`, press Enter).
