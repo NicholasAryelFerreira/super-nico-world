@@ -79,7 +79,7 @@ class Level {
     return this.grid[ty][tx];
   }
 
-  isSolid(c) { return '#XB?M=T|^u'.includes(c) && c !== ' '; }
+  isSolid(c) { return '#XB?MY=T|^u'.includes(c) && c !== ' '; }
   isPlatform(c) { return c === '='; }       // one-way
 
   solidAt(tx, ty) {
@@ -163,6 +163,8 @@ class Player extends Entity {
     this.invulnUntil = 0;
     this.squash = 1;       // visual squash & stretch
     this.dying = false;
+    this.dino = false;     // riding the flying dino?
+    this.flying = false;
   }
 
   setBig(big) {
@@ -181,7 +183,8 @@ class Player extends Entity {
     }
 
     const accel = this.onGround ? 2800 : 1800;
-    const maxSpeed = input.run ? 340 : 220;
+    let maxSpeed = input.run ? 340 : 220;
+    if (this.dino) maxSpeed += 50;
 
     if (input.left)  { this.vx -= accel * dt; this.facing = -1; }
     if (input.right) { this.vx += accel * dt; this.facing = 1; }
@@ -197,14 +200,27 @@ class Player extends Entity {
     if (this.onGround) this.coyoteUntil = now + 90;
     const wantsJump = now - jumpBufferedAt < 120;
     if (wantsJump && (this.onGround || now < this.coyoteUntil)) {
-      this.vy = -760;
+      this.vy = this.dino ? -800 : -760;
       this.coyoteUntil = 0;
       jumpBufferedAt = -1;
       this.squash = 1.25;
       AudioEngine.sfx.jump();
       game.spawnDust(this.x + this.w / 2, this.y + this.h, 4);
     }
-    if (!input.jump && this.vy < -260) this.vy = -260; // cut jump short
+
+    // dino flight: hold jump in the air to flap and soar
+    this.flying = false;
+    if (this.dino && !this.onGround && input.jump) {
+      this.vy -= 5200 * dt;
+      this.vy = Math.max(this.vy, -300);
+      this.flying = true;
+      if (Math.random() < 8 * dt) {
+        game.particles.add({ x: this.x + this.w / 2 - this.facing * 14, y: this.y + this.h,
+          vx: -this.facing * 40, vy: 60, life: 0.5, size: 3, color: 'rgba(255,255,255,0.8)' });
+      }
+    }
+    if (!this.dino && !input.jump && this.vy < -260) this.vy = -260; // cut jump short
+    if (this.y < -TILE * 1.5) { this.y = -TILE * 1.5; this.vy = Math.max(this.vy, 0); } // sky ceiling
 
     this.vy = Math.min(this.vy + GRAVITY * dt, MAX_FALL);
 
@@ -226,7 +242,17 @@ class Player extends Entity {
 
   hurt(game) {
     if (performance.now() < this.invulnUntil || this.dying) return;
-    if (this.big) {
+    if (this.dino) {
+      // the dino panics and runs off — chase it to remount!
+      this.dino = false;
+      const runaway = new Dino(this.x + this.facing * -10, this.y);
+      runaway.rising = false;
+      runaway.vx = -this.facing * 120;
+      runaway.shyUntil = performance.now() + 900;
+      game.items.push(runaway);
+      this.invulnUntil = performance.now() + 1800;
+      AudioEngine.sfx.hurt();
+    } else if (this.big) {
       this.setBig(false);
       this.invulnUntil = performance.now() + 1800;
       AudioEngine.sfx.hurt();
@@ -239,9 +265,14 @@ class Player extends Entity {
     if (performance.now() < this.invulnUntil && Math.floor(t * 16) % 2 === 0) return;
 
     const cx = this.x + this.w / 2;
-    const bottom = this.y + this.h;
+    let bottom = this.y + this.h;
     const sw = this.w * (2 - this.squash) * 0.95;
     const sh = this.h * this.squash;
+
+    if (this.dino) {
+      drawDinoBody(g, cx + this.facing * 2, this.y + this.h, this.facing, t, this.flying);
+      bottom -= 13; // sit in the saddle
+    }
 
     g.save();
     g.translate(cx, bottom);
@@ -266,22 +297,39 @@ class Player extends Entity {
     // overalls strap
     g.fillStyle = pants;
     g.fillRect(-sw * 0.38, -sh * 0.52, sw * 0.76, sh * 0.18);
-    // arms
+    // arms + white gloves
     g.fillStyle = shirt;
     const armSwing = -legSwing;
     g.fillRect(-sw * 0.52, -sh * 0.68 + armSwing * 0.3, sw * 0.16, sh * 0.3);
     g.fillRect(sw * 0.36, -sh * 0.68 - armSwing * 0.3, sw * 0.16, sh * 0.3);
+    g.fillStyle = '#fff';
+    g.beginPath();
+    g.arc(-sw * 0.44, -sh * 0.38 + armSwing * 0.3, sw * 0.11, 0, Math.PI * 2);
+    g.arc(sw * 0.44, -sh * 0.38 - armSwing * 0.3, sw * 0.11, 0, Math.PI * 2);
+    g.fill();
+    // torso shading
+    g.fillStyle = 'rgba(0,0,0,0.12)';
+    g.fillRect(-sw * 0.38, -sh * 0.4, sw * 0.76, sh * 0.08);
     // head
     g.fillStyle = skin;
     g.beginPath();
     g.arc(0, -sh * 0.84, sw * 0.34, 0, Math.PI * 2);
     g.fill();
-    // cap
+    // cap with brim and emblem
     g.fillStyle = shirt;
     g.beginPath();
     g.arc(0, -sh * 0.92, sw * 0.36, Math.PI, 0);
     g.fill();
-    g.fillRect(0, -sh * 0.96, sw * 0.5, sh * 0.07);
+    g.fillRect(0, -sh * 0.96, sw * 0.52, sh * 0.07);
+    g.fillStyle = '#fff';
+    g.beginPath();
+    g.arc(-sw * 0.05, -sh * 1.02, sw * 0.13, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = shirt;
+    g.font = `bold ${Math.max(7, sw * 0.32)}px Georgia`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('N', -sw * 0.05, -sh * 1.01);
     // eye
     g.fillStyle = '#222';
     g.beginPath();
@@ -497,6 +545,108 @@ class Mushroom extends Entity {
   }
 }
 
+/* ------------------------------ dino ------------------------------ */
+
+class Dino extends Entity {
+  constructor(x, y) {
+    super(x, y, 28, 26);
+    this.vx = 60;
+    this.riseFrom = y + TILE;
+    this.rising = true;
+    this.shyUntil = 0;   // can't be re-mounted right after a dismount
+  }
+  update(level, dt) {
+    if (this.rising) {
+      this.y -= 40 * dt;
+      if (this.y <= this.riseFrom - TILE) this.rising = false;
+      return;
+    }
+    this.vy = Math.min(this.vy + GRAVITY * dt, MAX_FALL);
+    const hit = this.moveAndCollide(level, dt);
+    if (hit.left) this.vx = Math.abs(this.vx);
+    if (hit.right) this.vx = -Math.abs(this.vx);
+    // turn at ledges so the dino waits around to be caught
+    if (this.onGround) {
+      const dir = Math.sign(this.vx) || 1;
+      const tx = Math.floor((dir > 0 ? this.x + this.w + 2 : this.x - 2) / TILE);
+      const ty = Math.floor((this.y + this.h + 4) / TILE);
+      if (!level.solidAt(tx, ty) && !level.isPlatform(level.tile(tx, ty))) this.vx = -dir * Math.abs(this.vx || 60);
+    }
+    if (this.y > level.h * TILE + 200) this.remove = true;
+  }
+  draw(g, t) {
+    drawDinoBody(g, this.x + this.w / 2, this.y + this.h, Math.sign(this.vx) || 1, t, false);
+  }
+}
+
+// Shared dino renderer (used by the item and while being ridden).
+function drawDinoBody(g, cx, bottom, facing, t, flying) {
+  g.save();
+  g.translate(cx, bottom);
+  g.scale(facing, 1);
+
+  const body = '#3fbf52', belly = '#d8f5c8', dark = '#2a8f3a';
+  const step = Math.sin(t * 12) * 2;
+
+  // wings
+  const flap = flying ? Math.sin(t * 22) * 0.9 : Math.sin(t * 4) * 0.15;
+  g.fillStyle = '#fff';
+  g.save();
+  g.translate(-4, -16);
+  g.rotate(-0.5 - flap);
+  g.beginPath();
+  g.ellipse(-8, 0, 11, 4.5, 0, 0, Math.PI * 2);
+  g.fill();
+  g.restore();
+
+  // tail
+  g.fillStyle = body;
+  g.beginPath();
+  g.moveTo(-10, -10);
+  g.quadraticCurveTo(-22, -12, -19, -3);
+  g.quadraticCurveTo(-15, -1, -10, -4);
+  g.fill();
+  // legs
+  g.fillStyle = dark;
+  g.fillRect(-9 + step, -7, 6, 7);
+  g.fillRect(2 - step, -7, 6, 7);
+  // body
+  g.fillStyle = body;
+  g.beginPath();
+  g.ellipse(-1, -13, 12, 9.5, 0, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = belly;
+  g.beginPath();
+  g.ellipse(1, -10, 8, 5.5, 0, 0, Math.PI * 2);
+  g.fill();
+  // saddle
+  g.fillStyle = '#d8342c';
+  g.beginPath();
+  g.ellipse(-2, -20, 7, 4, 0, Math.PI, 0);
+  g.fill();
+  // head + snout
+  g.fillStyle = body;
+  g.beginPath();
+  g.ellipse(11, -21, 7.5, 7, 0, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.ellipse(17, -19, 6, 4.5, 0, 0, Math.PI * 2);
+  g.fill();
+  // nostril, eye
+  g.fillStyle = dark;
+  g.beginPath(); g.arc(20, -20, 1.2, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#fff';
+  g.beginPath(); g.ellipse(10, -24, 3, 3.6, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#222';
+  g.beginPath(); g.arc(11, -24, 1.5, 0, Math.PI * 2); g.fill();
+  // back spikes
+  g.fillStyle = '#ff8c5a';
+  g.beginPath(); g.arc(-7, -21, 2.5, Math.PI, 0); g.fill();
+  g.beginPath(); g.arc(-11, -18, 2.2, Math.PI, 0); g.fill();
+
+  g.restore();
+}
+
 /* ============================== particles ============================== */
 
 class Particles {
@@ -552,6 +702,17 @@ function drawBackground(g, level, camX, t) {
   g.fillStyle = grad;
   g.fillRect(0, 0, W, H);
 
+  // stars (night / sunset worlds), with twinkle
+  if (level.def.stars) {
+    for (let i = 0; i < 60; i++) {
+      const sx = (i * 211.7 + 31) % W;
+      const sy = ((i * 137.3 + 17) % (H * 0.55));
+      const tw = 0.4 + 0.6 * Math.abs(Math.sin(t * 1.5 + i * 2.3));
+      g.fillStyle = `rgba(255,255,240,${0.5 * tw})`;
+      g.fillRect(sx, sy, 2, 2);
+    }
+  }
+
   // sun / glow
   const sunX = W * 0.78, sunY = H * 0.2;
   const sg = g.createRadialGradient(sunX, sunY, 10, sunX, sunY, 180);
@@ -560,6 +721,26 @@ function drawBackground(g, level, camX, t) {
   sg.addColorStop(1, 'rgba(255,240,180,0)');
   g.fillStyle = sg;
   g.fillRect(0, 0, W, H);
+  g.fillStyle = 'rgba(255,252,235,0.9)';
+  g.beginPath();
+  g.arc(sunX, sunY, 26, 0, Math.PI * 2);
+  g.fill();
+
+  // drifting birds (daytime worlds)
+  if (level.def.birds) {
+    g.strokeStyle = 'rgba(40,50,70,0.55)';
+    g.lineWidth = 1.6;
+    for (let i = 0; i < 4; i++) {
+      const bx = ((i * 417 + t * 28 - camX * 0.2) % (W + 200)) - 100;
+      const by = 60 + (i * 83) % 130;
+      const flap = Math.sin(t * 7 + i * 1.7) * 4;
+      g.beginPath();
+      g.moveTo(bx - 7, by - flap);
+      g.quadraticCurveTo(bx, by + 3, bx, by);
+      g.quadraticCurveTo(bx, by + 3, bx + 7, by - flap);
+      g.stroke();
+    }
+  }
 
   // far mountains
   g.fillStyle = 'rgba(255,255,255,0.18)';
@@ -617,6 +798,7 @@ function drawTiles(g, level, camX, t, skip) {
         case 'X': drawStone(g, px, py); break;
         case 'B': drawBrick(g, px, py); break;
         case '?': case 'M': drawQuestion(g, px, py, t); break;
+        case 'Y': drawEggBlock(g, px, py, t); break;
         case 'u': drawUsedBlock(g, px, py); break;
         case '=': drawPlatform(g, px, py); break;
         case 'T': drawPipeTop(g, px, py); break;
@@ -630,22 +812,59 @@ function drawTiles(g, level, camX, t, skip) {
 
 function drawGround(g, level, tx, ty, px, py) {
   const topExposed = level.tile(tx, ty - 1) !== '#';
-  g.fillStyle = '#8a5a33';
+  const grad = g.createLinearGradient(0, py, 0, py + TILE);
+  grad.addColorStop(0, '#96653b');
+  grad.addColorStop(1, '#7a4e2a');
+  g.fillStyle = grad;
   g.fillRect(px, py, TILE, TILE);
-  // dirt speckles (deterministic per tile)
+  // dirt speckles & pebbles (deterministic per tile)
   const r = (tx * 7349 + ty * 1031) % 97;
   g.fillStyle = 'rgba(60,35,15,0.35)';
   g.fillRect(px + (r % 22) + 3, py + ((r * 3) % 22) + 6, 4, 3);
   g.fillRect(px + ((r * 7) % 20) + 5, py + ((r * 11) % 18) + 10, 3, 3);
+  if (r % 5 === 0) {
+    g.fillStyle = 'rgba(170,140,110,0.5)';
+    g.beginPath();
+    g.ellipse(px + (r % 24) + 4, py + ((r * 13) % 16) + 12, 3, 2.2, 0, 0, Math.PI * 2);
+    g.fill();
+  }
   if (topExposed) {
-    g.fillStyle = '#3fa747';
-    g.fillRect(px, py, TILE, 10);
-    g.fillStyle = '#5fc769';
-    g.fillRect(px, py, TILE, 4);
+    const gg = g.createLinearGradient(0, py, 0, py + 12);
+    gg.addColorStop(0, '#6fd279');
+    gg.addColorStop(1, '#34973e');
+    g.fillStyle = gg;
+    g.fillRect(px, py, TILE, 11);
+    g.fillStyle = 'rgba(255,255,255,0.22)';
+    g.fillRect(px, py, TILE, 2.5);
     // grass blades
     g.fillStyle = '#3fa747';
     g.fillRect(px + (r % 24) + 2, py - 4, 3, 5);
     g.fillRect(px + ((r * 5) % 24) + 4, py - 3, 2, 4);
+    // occasional bush / flower decorations
+    if (r % 11 === 3) {
+      g.fillStyle = 'rgba(46,140,60,0.95)';
+      g.beginPath();
+      g.arc(px + 8, py - 5, 7, 0, Math.PI * 2);
+      g.arc(px + 18, py - 9, 9, 0, Math.PI * 2);
+      g.arc(px + 27, py - 5, 7, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = 'rgba(110,200,120,0.5)';
+      g.beginPath();
+      g.arc(px + 16, py - 11, 5, 0, Math.PI * 2);
+      g.fill();
+    } else if (r % 13 === 5) {
+      g.strokeStyle = '#2e8b3a'; g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(px + 16, py); g.lineTo(px + 16, py - 9); g.stroke();
+      g.fillStyle = ['#ff6b9d', '#ffd95e', '#ff8c5a'][r % 3];
+      for (let i = 0; i < 5; i++) {
+        const a = i * Math.PI * 2 / 5;
+        g.beginPath();
+        g.arc(px + 16 + Math.cos(a) * 4, py - 11 + Math.sin(a) * 4, 2.6, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.fillStyle = '#fff';
+      g.beginPath(); g.arc(px + 16, py - 11, 2.2, 0, Math.PI * 2); g.fill();
+    }
   }
 }
 
@@ -661,7 +880,10 @@ function drawStone(g, px, py) {
 }
 
 function drawBrick(g, px, py) {
-  g.fillStyle = '#b5542e';
+  const grad = g.createLinearGradient(0, py, 0, py + TILE);
+  grad.addColorStop(0, '#c4603a');
+  grad.addColorStop(1, '#a04826');
+  g.fillStyle = grad;
   g.fillRect(px, py, TILE, TILE);
   g.fillStyle = '#8e3c1d';
   g.fillRect(px, py + 14, TILE, 3);
@@ -689,6 +911,31 @@ function drawQuestion(g, px, py, t) {
   // bolts
   g.fillStyle = '#7a4a08';
   [[5,5],[TILE-7,5],[5,TILE-8],[TILE-7,TILE-8]].forEach(([ox,oy]) => g.fillRect(px+ox, py+oy, 3, 3));
+}
+
+function drawEggBlock(g, px, py, t) {
+  const pulse = 0.75 + 0.25 * Math.sin(t * 5 + 1);
+  g.fillStyle = '#e8a020';
+  g.fillRect(px, py, TILE, TILE);
+  g.fillStyle = `rgba(255,230,120,${0.5 * pulse})`;
+  g.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
+  g.fillStyle = '#7a4a08';
+  g.fillRect(px, py + TILE - 4, TILE, 4);
+  g.fillRect(px + TILE - 4, py, 4, TILE);
+  // spotted egg
+  const wob = Math.sin(t * 6) * 1.5;
+  g.fillStyle = '#fff';
+  g.beginPath();
+  g.ellipse(px + TILE / 2 + wob * 0.3, py + TILE / 2 + 1, 8, 10.5, wob * 0.04, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#3fbf52';
+  g.beginPath();
+  g.arc(px + TILE / 2 - 3, py + TILE / 2 - 4, 2.6, 0, Math.PI * 2);
+  g.arc(px + TILE / 2 + 4, py + TILE / 2 + 1, 2.2, 0, Math.PI * 2);
+  g.arc(px + TILE / 2 - 2, py + TILE / 2 + 6, 2.0, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#7a4a08';
+  [[5, 5], [TILE - 7, 5], [5, TILE - 8], [TILE - 7, TILE - 8]].forEach(([ox, oy]) => g.fillRect(px + ox, py + oy, 3, 3));
 }
 
 function drawUsedBlock(g, px, py) {
@@ -723,6 +970,13 @@ function drawPipeTop(g, px, py) {
   g.fillRect(px - 2, py + 16, TILE + 4, TILE - 16);
   g.fillStyle = 'rgba(0,0,0,0.25)';
   g.fillRect(px - 5, py + 13, TILE + 10, 3);
+  g.fillStyle = 'rgba(255,255,255,0.35)';
+  g.fillRect(px - 5, py + 1, TILE + 10, 2);
+  // dark opening hint
+  g.fillStyle = 'rgba(8,40,14,0.55)';
+  g.beginPath();
+  g.ellipse(px + TILE / 2, py + 2, TILE / 2 + 2, 3, 0, 0, Math.PI * 2);
+  g.fill();
 }
 
 function drawPipeBody(g, px, py) {
@@ -740,6 +994,12 @@ function drawCoin(g, cx, cy, t) {
   const w = 9 * (0.25 + 0.75 * ph);
   g.save();
   g.translate(cx, cy + Math.sin(t * 3 + cx * 0.1) * 2);
+  // soft glow halo
+  const halo = g.createRadialGradient(0, 0, 2, 0, 0, 20);
+  halo.addColorStop(0, 'rgba(255,220,110,0.45)');
+  halo.addColorStop(1, 'rgba(255,220,110,0)');
+  g.fillStyle = halo;
+  g.fillRect(-20, -20, 40, 40);
   const grad = g.createLinearGradient(-w, 0, w, 0);
   grad.addColorStop(0, '#b8860b');
   grad.addColorStop(0.5, '#ffd95e');
@@ -848,7 +1108,7 @@ const game = {
   hitBlock(tx, ty, player) {
     const c = this.level.tile(tx, ty);
     const px = tx * TILE, py = ty * TILE;
-    if (c === '?' || c === 'M') {
+    if (c === '?' || c === 'M' || c === 'Y') {
       this.level.set(tx, ty, 'u');
       this.bumps.push({ tx, ty, t: 0 });
       if (c === '?') {
@@ -856,9 +1116,14 @@ const game = {
         this.addScore(200, px + TILE / 2, py - 10);
         AudioEngine.sfx.coin();
         this.particles.burst(px + TILE / 2, py - 6, 8, { speed: 90, up: 120, life: 0.5, size: 3, color: '#ffd95e', gravity: 300, spark: true });
-      } else {
+      } else if (c === 'M') {
         this.items.push(new Mushroom(px + 4, py - TILE));
         AudioEngine.sfx.powerup();
+      } else {
+        this.items.push(new Dino(px + 2, py - TILE));
+        AudioEngine.sfx.powerup();
+        this.particles.burst(px + TILE / 2, py - 10, 12,
+          { speed: 110, up: 100, life: 0.7, size: 3.5, color: '#7ee787', gravity: 250, spark: true });
       }
     } else if (c === 'B') {
       if (player.big) {
@@ -967,10 +1232,21 @@ const game = {
     for (const it of this.items) {
       it.update(this.level, dt);
       if (rectsOverlap(it.rect, this.player.rect)) {
-        it.remove = true;
-        this.player.setBig(true);
-        this.addScore(1000, it.x, it.y - 10);
-        AudioEngine.sfx.powerup();
+        if (it instanceof Dino) {
+          if (!this.player.dino && performance.now() >= it.shyUntil) {
+            it.remove = true;
+            this.player.dino = true;
+            this.addScore(1000, it.x, it.y - 10);
+            AudioEngine.sfx.powerup();
+            this.particles.burst(this.player.x + this.player.w / 2, this.player.y + this.player.h, 10,
+              { speed: 100, up: 60, life: 0.5, size: 3, color: '#7ee787', gravity: 200, spark: true });
+          }
+        } else {
+          it.remove = true;
+          this.player.setBig(true);
+          this.addScore(1000, it.x, it.y - 10);
+          AudioEngine.sfx.powerup();
+        }
       }
     }
     this.items = this.items.filter(i => !i.remove);
@@ -1084,7 +1360,7 @@ const game = {
     for (const e of this.enemies) shadowFor(e);
     if (!this.player.dying) shadowFor(this.player);
 
-    for (const it of this.items) it.draw(g);
+    for (const it of this.items) it.draw(g, t);
     for (const e of this.enemies) e.draw(g, t);
     this.player.draw(g, t);
     this.particles.draw(g);
@@ -1102,6 +1378,12 @@ const game = {
     }
 
     g.restore();
+
+    // per-world color grade
+    if (this.level.def.tint) {
+      g.fillStyle = this.level.def.tint;
+      g.fillRect(0, 0, W, H);
+    }
 
     // vignette
     const vg = g.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, H * 0.95);

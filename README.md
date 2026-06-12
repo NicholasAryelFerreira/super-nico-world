@@ -4,6 +4,8 @@ A polished Mario-inspired platformer that runs entirely in your browser — no i
 
 ## Screenshots
 
+![Riding the flying dino](screenshots/dino-flight.png)
+
 | World 1 — Green Hills | World 2 — Cavern Climb | World 3 — Sunset Fortress |
 |---|---|---|
 | ![Green Hills](screenshots/world1-green-hills.png) | ![Cavern Climb](screenshots/world2-cavern-climb.png) | ![Sunset Fortress](screenshots/world3-sunset-fortress.png) |
@@ -41,6 +43,8 @@ A polished Mario-inspired platformer that runs entirely in your browser — no i
 - **Tight platforming feel**: coyote time, jump buffering, variable jump height, squash & stretch.
 - **Enemies**: goombas to stomp and koopas whose shells you can kick into other enemies.
 - **Power-ups**: question blocks hide coins and mushrooms; grow big to break bricks. Every 50 coins = extra life.
+- **🦖 Rideable flying dino**: every world hides a spotted-egg block. Crack it open, hop on the dino, and **hold Jump in mid-air to fly**. If you get hit, the dino runs off — chase it down to remount!
+- **Fair-by-design levels**: built with a level generator that guarantees every gap and climb is within jump range, verified by an automated playthrough bot.
 - **Hazards**: spikes, pits, and a countdown timer.
 - **Procedural audio**: a chiptune overworld theme plus jump/coin/stomp/power-up/victory sounds, all generated at runtime.
 
