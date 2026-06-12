@@ -56,7 +56,7 @@ class Level {
       for (let x = 0; x < this.w; x++) {
         let c = this.rows[y][x] || ' ';
         if (c === 'g' || c === 'k') {
-          this.entitySpawns.push({ type: c === 'g' ? 'goomba' : 'koopa', x: x * TILE, y: y * TILE });
+          this.entitySpawns.push({ type: c === 'g' ? 'thornling' : 'curlbug', x: x * TILE, y: y * TILE });
           c = ' ';
         } else if (c === 'S') {
           this.startX = x * TILE; this.startY = y * TILE - TILE;
@@ -163,7 +163,7 @@ class Player extends Entity {
     this.invulnUntil = 0;
     this.squash = 1;       // visual squash & stretch
     this.dying = false;
-    this.dino = false;     // riding the flying dino?
+    this.glydon = false;     // riding the flying Glydon?
     this.flying = false;
   }
 
@@ -184,7 +184,7 @@ class Player extends Entity {
 
     const accel = this.onGround ? 2800 : 1800;
     let maxSpeed = input.run ? 340 : 220;
-    if (this.dino) maxSpeed += 50;
+    if (this.glydon) maxSpeed += 50;
 
     if (input.left)  { this.vx -= accel * dt; this.facing = -1; }
     if (input.right) { this.vx += accel * dt; this.facing = 1; }
@@ -200,7 +200,7 @@ class Player extends Entity {
     if (this.onGround) this.coyoteUntil = now + 90;
     const wantsJump = now - jumpBufferedAt < 120;
     if (wantsJump && (this.onGround || now < this.coyoteUntil)) {
-      this.vy = this.dino ? -800 : -760;
+      this.vy = this.glydon ? -800 : -760;
       this.coyoteUntil = 0;
       jumpBufferedAt = -1;
       this.squash = 1.25;
@@ -208,9 +208,9 @@ class Player extends Entity {
       game.spawnDust(this.x + this.w / 2, this.y + this.h, 4);
     }
 
-    // dino flight: hold jump in the air to flap and soar
+    // Glydon flight: hold jump in the air to flap and soar
     this.flying = false;
-    if (this.dino && !this.onGround && input.jump) {
+    if (this.glydon && !this.onGround && input.jump) {
       this.vy -= 5200 * dt;
       this.vy = Math.max(this.vy, -300);
       this.flying = true;
@@ -219,7 +219,7 @@ class Player extends Entity {
           vx: -this.facing * 40, vy: 60, life: 0.5, size: 3, color: 'rgba(255,255,255,0.8)' });
       }
     }
-    if (!this.dino && !input.jump && this.vy < -260) this.vy = -260; // cut jump short
+    if (!this.glydon && !input.jump && this.vy < -260) this.vy = -260; // cut jump short
     if (this.y < -TILE * 1.5) { this.y = -TILE * 1.5; this.vy = Math.max(this.vy, 0); } // sky ceiling
 
     this.vy = Math.min(this.vy + GRAVITY * dt, MAX_FALL);
@@ -242,10 +242,10 @@ class Player extends Entity {
 
   hurt(game) {
     if (performance.now() < this.invulnUntil || this.dying) return;
-    if (this.dino) {
-      // the dino panics and runs off — chase it to remount!
-      this.dino = false;
-      const runaway = new Dino(this.x + this.facing * -10, this.y);
+    if (this.glydon) {
+      // the Glydon panics and runs off — chase it to remount!
+      this.glydon = false;
+      const runaway = new Glydon(this.x + this.facing * -10, this.y);
       runaway.rising = false;
       runaway.vx = -this.facing * 120;
       runaway.shyUntil = performance.now() + 900;
@@ -269,8 +269,8 @@ class Player extends Entity {
     const sw = this.w * (2 - this.squash) * 0.95;
     const sh = this.h * this.squash;
 
-    if (this.dino) {
-      drawDinoBody(g, cx + this.facing * 2, this.y + this.h, this.facing, t, this.flying);
+    if (this.glydon) {
+      drawGlydonBody(g, cx + this.facing * 2, this.y + this.h, this.facing, t, this.flying);
       bottom -= 13; // sit in the saddle
     }
 
@@ -278,66 +278,102 @@ class Player extends Entity {
     g.translate(cx, bottom);
     g.scale(this.facing, 1);
 
-    const skin = '#f0c098', shirt = '#d8342c', pants = '#2a4fc7', shoe = '#5c3317';
+    // Nico the explorer — original design: teal tunic, amber scarf, headband.
+    const skin = '#f1c197', tunic = '#17a08c', tunicDk = '#0f7a6a',
+          scarf = '#ff8c42', pants = '#6b4a2b', boot = '#3f2a17',
+          hair = '#5a3a1c', band = '#ff8c42';
     const legSwing = this.onGround && Math.abs(this.vx) > 10
       ? Math.sin(this.runTime * 14) * 6 : (this.onGround ? 0 : 4);
+    const armSwing = -legSwing;
 
-    // shadow handled by game; draw body bottom-up
+    // flowing scarf tail behind
+    g.fillStyle = scarf;
+    g.beginPath();
+    g.moveTo(-sw * 0.3, -sh * 0.66);
+    g.quadraticCurveTo(-sw * 0.7, -sh * 0.6 + armSwing * 0.4, -sw * 0.62, -sh * 0.4);
+    g.quadraticCurveTo(-sw * 0.5, -sh * 0.52, -sw * 0.28, -sh * 0.52);
+    g.fill();
+
     // legs
     g.fillStyle = pants;
-    g.fillRect(-sw * 0.32 + legSwing * 0.4, -sh * 0.36, sw * 0.3, sh * 0.36);
-    g.fillRect(sw * 0.02 - legSwing * 0.4, -sh * 0.36, sw * 0.3, sh * 0.36);
-    // shoes
-    g.fillStyle = shoe;
-    g.fillRect(-sw * 0.36 + legSwing * 0.4, -sh * 0.1, sw * 0.38, sh * 0.1);
-    g.fillRect(sw * 0.0 - legSwing * 0.4, -sh * 0.1, sw * 0.38, sh * 0.1);
-    // torso
-    g.fillStyle = shirt;
-    g.fillRect(-sw * 0.38, -sh * 0.72, sw * 0.76, sh * 0.4);
-    // overalls strap
-    g.fillStyle = pants;
-    g.fillRect(-sw * 0.38, -sh * 0.52, sw * 0.76, sh * 0.18);
-    // arms + white gloves
-    g.fillStyle = shirt;
-    const armSwing = -legSwing;
-    g.fillRect(-sw * 0.52, -sh * 0.68 + armSwing * 0.3, sw * 0.16, sh * 0.3);
-    g.fillRect(sw * 0.36, -sh * 0.68 - armSwing * 0.3, sw * 0.16, sh * 0.3);
-    g.fillStyle = '#fff';
+    g.fillRect(-sw * 0.32 + legSwing * 0.4, -sh * 0.32, sw * 0.3, sh * 0.32);
+    g.fillRect(sw * 0.02 - legSwing * 0.4, -sh * 0.32, sw * 0.3, sh * 0.32);
+    // boots
+    g.fillStyle = boot;
+    g.fillRect(-sw * 0.37 + legSwing * 0.4, -sh * 0.1, sw * 0.4, sh * 0.1);
+    g.fillRect(sw * 0.0 - legSwing * 0.4, -sh * 0.1, sw * 0.4, sh * 0.1);
+    // tunic torso
+    g.fillStyle = tunic;
     g.beginPath();
-    g.arc(-sw * 0.44, -sh * 0.38 + armSwing * 0.3, sw * 0.11, 0, Math.PI * 2);
-    g.arc(sw * 0.44, -sh * 0.38 - armSwing * 0.3, sw * 0.11, 0, Math.PI * 2);
+    g.moveTo(-sw * 0.4, -sh * 0.72);
+    g.lineTo(sw * 0.4, -sh * 0.72);
+    g.lineTo(sw * 0.34, -sh * 0.3);
+    g.lineTo(-sw * 0.34, -sh * 0.3);
     g.fill();
-    // torso shading
-    g.fillStyle = 'rgba(0,0,0,0.12)';
-    g.fillRect(-sw * 0.38, -sh * 0.4, sw * 0.76, sh * 0.08);
+    // belt
+    g.fillStyle = boot;
+    g.fillRect(-sw * 0.36, -sh * 0.42, sw * 0.72, sh * 0.07);
+    g.fillStyle = '#ffd95e';
+    g.fillRect(-sw * 0.06, -sh * 0.43, sw * 0.12, sh * 0.09);
+    // tunic shading
+    g.fillStyle = tunicDk;
+    g.fillRect(-sw * 0.34, -sh * 0.5, sw * 0.68, sh * 0.06);
+    // arms + bare hands
+    g.fillStyle = tunic;
+    g.fillRect(-sw * 0.52, -sh * 0.68 + armSwing * 0.3, sw * 0.16, sh * 0.28);
+    g.fillRect(sw * 0.36, -sh * 0.68 - armSwing * 0.3, sw * 0.16, sh * 0.28);
+    g.fillStyle = skin;
+    g.beginPath();
+    g.arc(-sw * 0.44, -sh * 0.4 + armSwing * 0.3, sw * 0.09, 0, Math.PI * 2);
+    g.arc(sw * 0.44, -sh * 0.4 - armSwing * 0.3, sw * 0.09, 0, Math.PI * 2);
+    g.fill();
+    // scarf knot around neck
+    g.fillStyle = scarf;
+    g.fillRect(-sw * 0.3, -sh * 0.74, sw * 0.6, sh * 0.1);
     // head
     g.fillStyle = skin;
     g.beginPath();
-    g.arc(0, -sh * 0.84, sw * 0.34, 0, Math.PI * 2);
+    g.arc(0, -sh * 0.86, sw * 0.34, 0, Math.PI * 2);
     g.fill();
-    // cap with brim and emblem
-    g.fillStyle = shirt;
+    // tousled hair + sideburn
+    g.fillStyle = hair;
     g.beginPath();
     g.arc(0, -sh * 0.92, sw * 0.36, Math.PI, 0);
     g.fill();
-    g.fillRect(0, -sh * 0.96, sw * 0.52, sh * 0.07);
-    g.fillStyle = '#fff';
     g.beginPath();
-    g.arc(-sw * 0.05, -sh * 1.02, sw * 0.13, 0, Math.PI * 2);
+    g.moveTo(-sw * 0.34, -sh * 0.96);
+    g.lineTo(-sw * 0.18, -sh * 1.12);
+    g.lineTo(-sw * 0.06, -sh * 0.98);
+    g.lineTo(sw * 0.08, -sh * 1.14);
+    g.lineTo(sw * 0.2, -sh * 0.98);
+    g.lineTo(sw * 0.34, -sh * 1.06);
+    g.lineTo(sw * 0.36, -sh * 0.9);
+    g.lineTo(-sw * 0.36, -sh * 0.9);
     g.fill();
-    g.fillStyle = shirt;
-    g.font = `bold ${Math.max(7, sw * 0.32)}px Georgia`;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText('N', -sw * 0.05, -sh * 1.01);
-    // eye
+    g.fillRect(-sw * 0.36, -sh * 0.86, sw * 0.08, sh * 0.12); // sideburn
+    // headband across forehead
+    g.fillStyle = band;
+    g.fillRect(-sw * 0.37, -sh * 0.95, sw * 0.74, sh * 0.08);
+    g.fillStyle = '#ffd95e';
+    g.beginPath();
+    g.arc(-sw * 0.02, -sh * 0.91, sw * 0.06, 0, Math.PI * 2);
+    g.fill();
+    // headband tail fluttering back
+    g.fillStyle = band;
+    g.beginPath();
+    g.moveTo(-sw * 0.34, -sh * 0.93);
+    g.quadraticCurveTo(-sw * 0.56, -sh * 0.9 + armSwing * 0.3, -sw * 0.5, -sh * 0.8);
+    g.quadraticCurveTo(-sw * 0.42, -sh * 0.88, -sw * 0.32, -sh * 0.88);
+    g.fill();
+    // eye + smile
     g.fillStyle = '#222';
     g.beginPath();
-    g.arc(sw * 0.16, -sh * 0.86, 1.8, 0, Math.PI * 2);
+    g.arc(sw * 0.16, -sh * 0.86, 2, 0, Math.PI * 2);
     g.fill();
-    // moustache
-    g.fillStyle = '#4a2c14';
-    g.fillRect(sw * 0.04, -sh * 0.78, sw * 0.26, sh * 0.05);
+    g.strokeStyle = '#a85b3a'; g.lineWidth = 1.4;
+    g.beginPath();
+    g.arc(sw * 0.16, -sh * 0.78, sw * 0.1, 0.1, Math.PI - 0.6);
+    g.stroke();
 
     g.restore();
   }
@@ -345,7 +381,7 @@ class Player extends Entity {
 
 /* ------------------------------ enemies ------------------------------ */
 
-class Goomba extends Entity {
+class Thornling extends Entity {
   constructor(x, y) {
     super(x + 4, y + 8, 24, 24);
     this.vx = -55;
@@ -373,42 +409,67 @@ class Goomba extends Entity {
     if (this.y > level.h * TILE + 200) this.remove = true;
   }
   stomp() { this.squashT = 0.35; this.vx = 0; this.dead = true; }
+  // "Thornling": a grumpy spiky burr-creature on stubby feet (original design).
   draw(g, t) {
     const squish = this.squashT > 0 ? 0.35 : 1;
     const cx = this.x + this.w / 2, bottom = this.y + this.h;
     const w = this.w * (this.squashT > 0 ? 1.3 : 1), h = this.h * squish;
+    const cy = bottom - h * 0.5;
     const wob = this.dead ? 0 : Math.sin(t * 9 + this.x) * 1.5;
-    g.fillStyle = '#8a5a2b';
+    // spikes radiating out
+    g.fillStyle = '#5a3c1f';
+    const spikes = 9, rx = w * 0.46, ry = h * 0.46;
+    for (let i = 0; i < spikes; i++) {
+      const a = (i / spikes) * Math.PI * 2 - Math.PI / 2;
+      const sx = cx + Math.cos(a) * rx, sy = cy + Math.sin(a) * ry;
+      const ox = cx + Math.cos(a) * rx * 1.45, oy = cy + Math.sin(a) * ry * 1.45;
+      const pa = a + 0.22;
+      g.beginPath();
+      g.moveTo(cx + Math.cos(a - 0.22) * rx, cy + Math.sin(a - 0.22) * ry);
+      g.lineTo(ox, oy);
+      g.lineTo(cx + Math.cos(pa) * rx, cy + Math.sin(pa) * ry);
+      g.fill();
+    }
+    // body
+    const grad = g.createRadialGradient(cx - w * 0.12, cy - h * 0.15, 2, cx, cy, w * 0.5);
+    grad.addColorStop(0, '#9a6a38');
+    grad.addColorStop(1, '#6e4622');
+    g.fillStyle = grad;
     g.beginPath();
-    g.ellipse(cx, bottom - h * 0.55, w * 0.5, h * 0.5, 0, 0, Math.PI * 2);
+    g.ellipse(cx, cy, w * 0.46, h * 0.46, 0, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = '#6b421d';
+    // feet
+    g.fillStyle = '#4a2f17';
     g.beginPath();
-    g.ellipse(cx - w * 0.28 + wob, bottom - 3, w * 0.18, 4 * squish, 0, 0, Math.PI * 2);
-    g.ellipse(cx + w * 0.28 - wob, bottom - 3, w * 0.18, 4 * squish, 0, 0, Math.PI * 2);
+    g.ellipse(cx - w * 0.24 + wob, bottom - 2, w * 0.16, 3.5 * squish, 0, 0, Math.PI * 2);
+    g.ellipse(cx + w * 0.24 - wob, bottom - 2, w * 0.16, 3.5 * squish, 0, 0, Math.PI * 2);
     g.fill();
     if (!this.dead) {
-      g.fillStyle = '#fff';
+      // eyes
+      g.fillStyle = '#fff4d8';
       g.beginPath();
-      g.ellipse(cx - 5, bottom - h * 0.65, 3.6, 4.6, 0, 0, Math.PI * 2);
-      g.ellipse(cx + 5, bottom - h * 0.65, 3.6, 4.6, 0, 0, Math.PI * 2);
+      g.ellipse(cx - 5, cy - h * 0.05, 4, 5, 0, 0, Math.PI * 2);
+      g.ellipse(cx + 5, cy - h * 0.05, 4, 5, 0, 0, Math.PI * 2);
       g.fill();
-      g.fillStyle = '#222';
+      g.fillStyle = '#c0392b';
       g.beginPath();
-      g.arc(cx - 4, bottom - h * 0.62, 1.7, 0, Math.PI * 2);
-      g.arc(cx + 4, bottom - h * 0.62, 1.7, 0, Math.PI * 2);
+      g.arc(cx - 4, cy, 1.8, 0, Math.PI * 2);
+      g.arc(cx + 4, cy, 1.8, 0, Math.PI * 2);
       g.fill();
       // angry brows
       g.strokeStyle = '#3d2410'; g.lineWidth = 2;
       g.beginPath();
-      g.moveTo(cx - 9, bottom - h * 0.78); g.lineTo(cx - 2, bottom - h * 0.72);
-      g.moveTo(cx + 9, bottom - h * 0.78); g.lineTo(cx + 2, bottom - h * 0.72);
+      g.moveTo(cx - 9, cy - h * 0.22); g.lineTo(cx - 1, cy - h * 0.12);
+      g.moveTo(cx + 9, cy - h * 0.22); g.lineTo(cx + 1, cy - h * 0.12);
       g.stroke();
+      // little frown
+      g.beginPath(); g.lineWidth = 1.5;
+      g.arc(cx, cy + h * 0.18, 3, Math.PI + 0.4, -0.4); g.stroke();
     }
   }
 }
 
-class Koopa extends Entity {
+class Curlbug extends Entity {
   constructor(x, y) {
     super(x + 4, y + 4, 24, 28);
     this.vx = -70;
@@ -452,61 +513,74 @@ class Koopa extends Entity {
     AudioEngine.sfx.kick();
   }
   get moving() { return this.shell && this.vx !== 0; }
+  // "Curlbug": an armored pillbug that curls into a rolling ball when stomped.
   draw(g, t) {
     const cx = this.x + this.w / 2, bottom = this.y + this.h;
+    const armor = '#5f7c93', armorDk = '#3c566b', armorLt = '#9fb6c8';
     if (this.shell) {
-      const spin = this.moving ? t * 20 : 0;
+      // curled armored ball with segmented plates
+      const spin = this.moving ? t * 16 : 0;
       g.save();
       g.translate(cx, bottom - 10);
-      g.fillStyle = '#2e8b3a';
+      g.rotate(spin);
+      const rg = g.createRadialGradient(-3, -3, 2, 0, 0, 12);
+      rg.addColorStop(0, armorLt);
+      rg.addColorStop(1, armorDk);
+      g.fillStyle = rg;
       g.beginPath();
-      g.ellipse(0, 0, 13, 10, 0, 0, Math.PI * 2);
+      g.arc(0, 0, 12, 0, Math.PI * 2);
       g.fill();
-      g.strokeStyle = '#1c5c24'; g.lineWidth = 2;
-      for (let i = 0; i < 3; i++) {
+      g.strokeStyle = armorDk; g.lineWidth = 1.6;
+      for (let i = -2; i <= 2; i++) {
         g.beginPath();
-        const a = spin + i * Math.PI / 3;
-        g.moveTo(Math.cos(a) * -11, Math.sin(a) * -3);
-        g.lineTo(Math.cos(a) * 11, Math.sin(a) * 3);
+        g.moveTo(i * 4.2, -Math.sqrt(Math.max(0, 144 - (i * 4.2) ** 2)));
+        g.lineTo(i * 4.2, Math.sqrt(Math.max(0, 144 - (i * 4.2) ** 2)));
         g.stroke();
       }
-      g.fillStyle = '#f7f2d8';
-      g.beginPath();
-      g.ellipse(0, 7, 12, 4, 0, 0, Math.PI * 2);
-      g.fill();
       g.restore();
     } else {
       const wob = Math.sin(t * 8 + this.x) * 1.5;
       const dir = Math.sign(this.vx) || -1;
-      // feet
-      g.fillStyle = '#e8a33d';
-      g.fillRect(cx - 10 + wob, bottom - 6, 8, 6);
-      g.fillRect(cx + 2 - wob, bottom - 6, 8, 6);
-      // shell
-      g.fillStyle = '#2e8b3a';
+      // little legs
+      g.fillStyle = armorDk;
+      for (let i = -1; i <= 1; i++) g.fillRect(cx + i * 7 - 1.5 + wob, bottom - 5, 3, 5);
+      // segmented armored back
+      const grad = g.createLinearGradient(0, bottom - 26, 0, bottom - 6);
+      grad.addColorStop(0, armorLt);
+      grad.addColorStop(1, armor);
+      g.fillStyle = grad;
       g.beginPath();
-      g.ellipse(cx, bottom - 14, 12, 11, 0, 0, Math.PI * 2);
+      g.ellipse(cx, bottom - 13, 12, 11, 0, Math.PI, 0);
       g.fill();
-      g.strokeStyle = '#1c5c24'; g.lineWidth = 1.5;
+      g.fillRect(cx - 12, bottom - 13, 24, 6);
+      g.strokeStyle = armorDk; g.lineWidth = 1.3;
+      for (let i = -2; i <= 2; i++) {
+        g.beginPath();
+        g.moveTo(cx + i * 4.6, bottom - 13 - Math.sqrt(Math.max(0, 121 - (i * 4.6) ** 2)));
+        g.lineTo(cx + i * 4.6, bottom - 7);
+        g.stroke();
+      }
+      // head with antennae
+      g.fillStyle = '#8a9aa8';
       g.beginPath();
-      g.ellipse(cx, bottom - 14, 8, 7, 0, 0, Math.PI * 2);
+      g.ellipse(cx + dir * 11, bottom - 12, 5.5, 6, 0, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = '#8a9aa8'; g.lineWidth = 1.2;
+      g.beginPath();
+      g.moveTo(cx + dir * 13, bottom - 16); g.lineTo(cx + dir * 17, bottom - 20);
+      g.moveTo(cx + dir * 13, bottom - 14); g.lineTo(cx + dir * 18, bottom - 15);
       g.stroke();
-      // head
-      g.fillStyle = '#f7d154';
-      g.beginPath();
-      g.ellipse(cx + dir * 10, bottom - 24, 6.5, 7.5, 0, 0, Math.PI * 2);
-      g.fill();
       g.fillStyle = '#222';
       g.beginPath();
-      g.arc(cx + dir * 12, bottom - 26, 1.6, 0, Math.PI * 2);
+      g.arc(cx + dir * 12.5, bottom - 12, 1.6, 0, Math.PI * 2);
       g.fill();
     }
   }
 }
 
-/* ------------------------------ mushroom ------------------------------ */
+/* ------------------------------ sunfruit ------------------------------ */
 
-class Mushroom extends Entity {
+class Sunfruit extends Entity {
   constructor(x, y) {
     super(x + 4, y, 24, 24);
     this.vx = 90;
@@ -525,29 +599,47 @@ class Mushroom extends Entity {
     if (hit.right) this.vx = -90;
     if (this.y > level.h * TILE + 200) this.remove = true;
   }
-  draw(g) {
+  // "Sunfruit": a glowing growth fruit (original power-up design).
+  draw(g, t) {
     const cx = this.x + this.w / 2, bottom = this.y + this.h;
-    g.fillStyle = '#f7f2d8';
-    g.fillRect(cx - 7, bottom - 10, 14, 10);
-    g.fillStyle = '#e8483a';
+    const cy = bottom - 11;
+    const pulse = 0.7 + 0.3 * Math.sin((t || 0) * 6);
+    // glow halo
+    const halo = g.createRadialGradient(cx, cy, 2, cx, cy, 18);
+    halo.addColorStop(0, `rgba(255,180,80,${0.5 * pulse})`);
+    halo.addColorStop(1, 'rgba(255,180,80,0)');
+    g.fillStyle = halo;
+    g.fillRect(cx - 18, cy - 18, 36, 36);
+    // fruit body (two-lobed, amber to orange)
+    const grad = g.createRadialGradient(cx - 3, cy - 4, 2, cx, cy, 11);
+    grad.addColorStop(0, '#ffd95e');
+    grad.addColorStop(1, '#f6781f');
+    g.fillStyle = grad;
     g.beginPath();
-    g.ellipse(cx, bottom - 12, 13, 9, 0, Math.PI, 0);
+    g.arc(cx - 4, cy, 7, 0, Math.PI * 2);
+    g.arc(cx + 4, cy, 7, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = '#fff';
     g.beginPath();
-    g.arc(cx - 6, bottom - 15, 3, 0, Math.PI * 2);
-    g.arc(cx + 6, bottom - 15, 3, 0, Math.PI * 2);
-    g.arc(cx, bottom - 19, 3, 0, Math.PI * 2);
+    g.ellipse(cx, cy + 3, 9, 7, 0, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = '#222';
-    g.fillRect(cx - 5, bottom - 8, 2, 4);
-    g.fillRect(cx + 3, bottom - 8, 2, 4);
+    // shine
+    g.fillStyle = 'rgba(255,255,255,0.7)';
+    g.beginPath();
+    g.ellipse(cx - 4, cy - 4, 2.4, 3.4, -0.5, 0, Math.PI * 2);
+    g.fill();
+    // stem + leaf
+    g.strokeStyle = '#6b4a2b'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(cx, cy - 6); g.lineTo(cx, cy - 11); g.stroke();
+    g.fillStyle = '#3fbf52';
+    g.beginPath();
+    g.ellipse(cx + 4, cy - 11, 5, 2.6, -0.6, 0, Math.PI * 2);
+    g.fill();
   }
 }
 
-/* ------------------------------ dino ------------------------------ */
+/* ------------------------------ glydon ------------------------------ */
 
-class Dino extends Entity {
+class Glydon extends Entity {
   constructor(x, y) {
     super(x, y, 28, 26);
     this.vx = 60;
@@ -565,7 +657,7 @@ class Dino extends Entity {
     const hit = this.moveAndCollide(level, dt);
     if (hit.left) this.vx = Math.abs(this.vx);
     if (hit.right) this.vx = -Math.abs(this.vx);
-    // turn at ledges so the dino waits around to be caught
+    // turn at ledges so the Glydon waits around to be caught
     if (this.onGround) {
       const dir = Math.sign(this.vx) || 1;
       const tx = Math.floor((dir > 0 ? this.x + this.w + 2 : this.x - 2) / TILE);
@@ -575,74 +667,114 @@ class Dino extends Entity {
     if (this.y > level.h * TILE + 200) this.remove = true;
   }
   draw(g, t) {
-    drawDinoBody(g, this.x + this.w / 2, this.y + this.h, Math.sign(this.vx) || 1, t, false);
+    drawGlydonBody(g, this.x + this.w / 2, this.y + this.h, Math.sign(this.vx) || 1, t, false);
   }
 }
 
-// Shared dino renderer (used by the item and while being ridden).
-function drawDinoBody(g, cx, bottom, facing, t, flying) {
+// "Glydon" — the rideable winged sky-glider (original creature design).
+// Shared renderer used both by the loose item and while being ridden.
+function drawGlydonBody(g, cx, bottom, facing, t, flying) {
   g.save();
   g.translate(cx, bottom);
   g.scale(facing, 1);
 
-  const body = '#3fbf52', belly = '#d8f5c8', dark = '#2a8f3a';
+  const body = '#9b7ede', bodyDk = '#7a5cc0', belly = '#f1e7ff',
+        wing = '#b9a3ee', wingTip = '#5ad1c8';
   const step = Math.sin(t * 12) * 2;
 
-  // wings
-  const flap = flying ? Math.sin(t * 22) * 0.9 : Math.sin(t * 4) * 0.15;
-  g.fillStyle = '#fff';
-  g.save();
-  g.translate(-4, -16);
-  g.rotate(-0.5 - flap);
-  g.beginPath();
-  g.ellipse(-8, 0, 11, 4.5, 0, 0, Math.PI * 2);
-  g.fill();
-  g.restore();
+  // far wing (behind body)
+  const flap = flying ? Math.sin(t * 22) * 0.9 : Math.sin(t * 3.5) * 0.18;
+  const drawWing = (col, scaleY) => {
+    g.save();
+    g.translate(-3, -17);
+    g.rotate(-0.45 - flap);
+    g.scale(1, scaleY);
+    g.fillStyle = col;
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.quadraticCurveTo(-16, -10, -22, -2);
+    g.quadraticCurveTo(-16, -4, -14, 2);
+    g.quadraticCurveTo(-18, 0, -12, 6);
+    g.quadraticCurveTo(-6, 3, 0, 4);
+    g.fill();
+    g.fillStyle = wingTip;
+    g.beginPath();
+    g.moveTo(-22, -2);
+    g.quadraticCurveTo(-16, -4, -14, 2);
+    g.quadraticCurveTo(-18, -1, -22, -2);
+    g.fill();
+    g.restore();
+  };
+  drawWing('#8f7bd0', 1);          // far wing, dimmer
 
-  // tail
+  // curled fluffy tail
   g.fillStyle = body;
   g.beginPath();
-  g.moveTo(-10, -10);
-  g.quadraticCurveTo(-22, -12, -19, -3);
-  g.quadraticCurveTo(-15, -1, -10, -4);
+  g.moveTo(-10, -11);
+  g.quadraticCurveTo(-24, -14, -20, -4);
+  g.quadraticCurveTo(-17, -9, -10, -6);
   g.fill();
+  g.fillStyle = wingTip;
+  g.beginPath(); g.arc(-21, -5, 3.2, 0, Math.PI * 2); g.fill();
+
   // legs
-  g.fillStyle = dark;
-  g.fillRect(-9 + step, -7, 6, 7);
-  g.fillRect(2 - step, -7, 6, 7);
-  // body
-  g.fillStyle = body;
+  g.fillStyle = bodyDk;
+  g.fillRect(-8 + step, -6, 5.5, 6);
+  g.fillRect(3 - step, -6, 5.5, 6);
+  g.fillStyle = wingTip;
+  g.fillRect(-8.5 + step, -2, 6.5, 2.5);
+  g.fillRect(2.5 - step, -2, 6.5, 2.5);
+
+  // round plush body
+  const bg = g.createRadialGradient(-3, -16, 2, 0, -12, 14);
+  bg.addColorStop(0, body);
+  bg.addColorStop(1, bodyDk);
+  g.fillStyle = bg;
   g.beginPath();
-  g.ellipse(-1, -13, 12, 9.5, 0, 0, Math.PI * 2);
+  g.ellipse(-1, -13, 12, 10, 0, 0, Math.PI * 2);
   g.fill();
   g.fillStyle = belly;
   g.beginPath();
-  g.ellipse(1, -10, 8, 5.5, 0, 0, Math.PI * 2);
+  g.ellipse(2, -10, 7.5, 6, 0, 0, Math.PI * 2);
   g.fill();
-  // saddle
-  g.fillStyle = '#d8342c';
+
+  // leather saddle
+  g.fillStyle = '#8a5a2b';
   g.beginPath();
   g.ellipse(-2, -20, 7, 4, 0, Math.PI, 0);
   g.fill();
-  // head + snout
+  g.fillStyle = '#6b421d';
+  g.fillRect(-9, -19, 14, 1.6);
+
+  // head
   g.fillStyle = body;
   g.beginPath();
-  g.ellipse(11, -21, 7.5, 7, 0, 0, Math.PI * 2);
+  g.ellipse(11, -22, 8, 7.5, 0, 0, Math.PI * 2);
   g.fill();
+  // big round ears
+  g.fillStyle = body;
+  g.beginPath(); g.ellipse(7, -31, 3.2, 4.5, -0.3, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(14, -31, 3.2, 4.5, 0.3, 0, Math.PI * 2); g.fill();
+  g.fillStyle = belly;
+  g.beginPath(); g.ellipse(7, -31, 1.4, 2.4, -0.3, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(14, -31, 1.4, 2.4, 0.3, 0, Math.PI * 2); g.fill();
+  // snout
+  g.fillStyle = belly;
   g.beginPath();
-  g.ellipse(17, -19, 6, 4.5, 0, 0, Math.PI * 2);
+  g.ellipse(16, -19, 5, 4, 0, 0, Math.PI * 2);
   g.fill();
-  // nostril, eye
-  g.fillStyle = dark;
-  g.beginPath(); g.arc(20, -20, 1.2, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#e06aa0';
+  g.beginPath(); g.arc(19, -19, 1.6, 0, Math.PI * 2); g.fill();
+  // big friendly eye
   g.fillStyle = '#fff';
-  g.beginPath(); g.ellipse(10, -24, 3, 3.6, 0, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(11, -24, 3.4, 4, 0, 0, Math.PI * 2); g.fill();
   g.fillStyle = '#222';
-  g.beginPath(); g.arc(11, -24, 1.5, 0, Math.PI * 2); g.fill();
-  // back spikes
-  g.fillStyle = '#ff8c5a';
-  g.beginPath(); g.arc(-7, -21, 2.5, Math.PI, 0); g.fill();
-  g.beginPath(); g.arc(-11, -18, 2.2, Math.PI, 0); g.fill();
+  g.beginPath(); g.arc(12, -24, 1.9, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#fff';
+  g.beginPath(); g.arc(12.7, -25, 0.7, 0, Math.PI * 2); g.fill();
+
+  // near wing (in front)
+  drawWing(wing, 1);
 
   g.restore();
 }
@@ -894,21 +1026,39 @@ function drawBrick(g, px, py) {
   g.fillRect(px, py, TILE, 3);
 }
 
+// Helper: a five-point star path centered at (cx,cy).
+function starPath(g, cx, cy, outer, inner, rot) {
+  g.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? outer : inner;
+    const a = (i / 10) * Math.PI * 2 - Math.PI / 2 + rot;
+    const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+    i === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+  }
+  g.closePath();
+}
+
+// Prize block — a carved amber block with a glowing star rune (replaces "?").
 function drawQuestion(g, px, py, t) {
-  const pulse = 0.75 + 0.25 * Math.sin(t * 5);
-  g.fillStyle = '#e8a020';
+  const pulse = 0.7 + 0.3 * Math.sin(t * 5);
+  const grad = g.createLinearGradient(0, py, 0, py + TILE);
+  grad.addColorStop(0, '#f0b53a');
+  grad.addColorStop(1, '#d18a18');
+  g.fillStyle = grad;
   g.fillRect(px, py, TILE, TILE);
-  g.fillStyle = `rgba(255,230,120,${0.5 * pulse})`;
+  g.fillStyle = `rgba(255,240,170,${0.5 * pulse})`;
   g.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
   g.fillStyle = '#7a4a08';
   g.fillRect(px, py + TILE - 4, TILE, 4);
   g.fillRect(px + TILE - 4, py, 4, TILE);
-  g.fillStyle = '#fff';
-  g.font = 'bold 20px Georgia';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.fillText('?', px + TILE / 2, py + TILE / 2 + 1);
-  // bolts
+  g.fillStyle = 'rgba(255,255,255,0.3)';
+  g.fillRect(px, py, TILE, 2);
+  // glowing star rune
+  g.fillStyle = `rgba(255,255,235,${0.85 * pulse + 0.15})`;
+  starPath(g, px + TILE / 2, py + TILE / 2, 9, 3.8, Math.sin(t * 2) * 0.15);
+  g.fill();
+  g.strokeStyle = '#fff7d8'; g.lineWidth = 1; g.stroke();
+  // rivets
   g.fillStyle = '#7a4a08';
   [[5,5],[TILE-7,5],[5,TILE-8],[TILE-7,TILE-8]].forEach(([ox,oy]) => g.fillRect(px+ox, py+oy, 3, 3));
 }
@@ -922,17 +1072,20 @@ function drawEggBlock(g, px, py, t) {
   g.fillStyle = '#7a4a08';
   g.fillRect(px, py + TILE - 4, TILE, 4);
   g.fillRect(px + TILE - 4, py, 4, TILE);
-  // spotted egg
+  // Glydon egg — cream shell with lavender/teal speckles
   const wob = Math.sin(t * 6) * 1.5;
-  g.fillStyle = '#fff';
+  g.fillStyle = '#f3ecff';
   g.beginPath();
   g.ellipse(px + TILE / 2 + wob * 0.3, py + TILE / 2 + 1, 8, 10.5, wob * 0.04, 0, Math.PI * 2);
   g.fill();
-  g.fillStyle = '#3fbf52';
+  g.fillStyle = '#9b7ede';
   g.beginPath();
   g.arc(px + TILE / 2 - 3, py + TILE / 2 - 4, 2.6, 0, Math.PI * 2);
-  g.arc(px + TILE / 2 + 4, py + TILE / 2 + 1, 2.2, 0, Math.PI * 2);
   g.arc(px + TILE / 2 - 2, py + TILE / 2 + 6, 2.0, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#5ad1c8';
+  g.beginPath();
+  g.arc(px + TILE / 2 + 4, py + TILE / 2 + 1, 2.2, 0, Math.PI * 2);
   g.fill();
   g.fillStyle = '#7a4a08';
   [[5, 5], [TILE - 7, 5], [5, TILE - 8], [TILE - 7, TILE - 8]].forEach(([ox, oy]) => g.fillRect(px + ox, py + oy, 3, 3));
@@ -959,62 +1112,81 @@ function drawPlatform(g, px, py) {
   g.fillRect(px + 26, py + 4, 2, 8);
 }
 
-function drawPipeTop(g, px, py) {
+// Carved stone pillar (replaces the green pipe). 'T' draws the capstone.
+function stoneGrad(g, px) {
   const grad = g.createLinearGradient(px - 6, 0, px + TILE + 6, 0);
-  grad.addColorStop(0, '#1d6e28');
-  grad.addColorStop(0.35, '#5ecf6a');
-  grad.addColorStop(0.6, '#2f9e3c');
-  grad.addColorStop(1, '#15521d');
-  g.fillStyle = grad;
-  g.fillRect(px - 5, py, TILE + 10, 16);
-  g.fillRect(px - 2, py + 16, TILE + 4, TILE - 16);
-  g.fillStyle = 'rgba(0,0,0,0.25)';
-  g.fillRect(px - 5, py + 13, TILE + 10, 3);
-  g.fillStyle = 'rgba(255,255,255,0.35)';
-  g.fillRect(px - 5, py + 1, TILE + 10, 2);
-  // dark opening hint
-  g.fillStyle = 'rgba(8,40,14,0.55)';
+  grad.addColorStop(0, '#5a6472');
+  grad.addColorStop(0.4, '#8b95a4');
+  grad.addColorStop(0.6, '#737d8c');
+  grad.addColorStop(1, '#4a525e');
+  return grad;
+}
+
+function drawPipeTop(g, px, py) {
+  g.fillStyle = stoneGrad(g, px);
+  g.fillRect(px - 5, py, TILE + 10, 14);       // capstone overhang
+  g.fillRect(px - 2, py + 14, TILE + 4, TILE - 14);
+  // capstone edges
+  g.fillStyle = 'rgba(255,255,255,0.28)';
+  g.fillRect(px - 5, py, TILE + 10, 2);
+  g.fillStyle = 'rgba(0,0,0,0.28)';
+  g.fillRect(px - 5, py + 11, TILE + 10, 3);
+  // carved rune groove
+  g.strokeStyle = 'rgba(40,50,60,0.5)'; g.lineWidth = 2;
   g.beginPath();
-  g.ellipse(px + TILE / 2, py + 2, TILE / 2 + 2, 3, 0, 0, Math.PI * 2);
-  g.fill();
+  g.moveTo(px + 8, py + 20); g.lineTo(px + TILE - 8, py + 20);
+  g.stroke();
 }
 
 function drawPipeBody(g, px, py) {
-  const grad = g.createLinearGradient(px - 2, 0, px + TILE + 2, 0);
-  grad.addColorStop(0, '#1d6e28');
-  grad.addColorStop(0.35, '#5ecf6a');
-  grad.addColorStop(0.6, '#2f9e3c');
-  grad.addColorStop(1, '#15521d');
-  g.fillStyle = grad;
+  g.fillStyle = stoneGrad(g, px);
   g.fillRect(px - 2, py, TILE + 4, TILE);
+  // block seams
+  g.strokeStyle = 'rgba(40,50,60,0.4)'; g.lineWidth = 1.5;
+  g.beginPath();
+  g.moveTo(px - 2, py + TILE / 2); g.lineTo(px + TILE + 2, py + TILE / 2);
+  g.moveTo(px + TILE / 2, py); g.lineTo(px + TILE / 2, py + TILE / 2);
+  g.stroke();
 }
 
+// Collectible crystal gem (replaces the old coin). Spins with a facet shimmer.
 function drawCoin(g, cx, cy, t) {
   const ph = Math.abs(Math.sin(t * 4 + cx * 0.05));
-  const w = 9 * (0.25 + 0.75 * ph);
+  const w = 9 * (0.3 + 0.7 * ph);   // foreshorten as it spins
   g.save();
   g.translate(cx, cy + Math.sin(t * 3 + cx * 0.1) * 2);
-  // soft glow halo
+  // glow halo
   const halo = g.createRadialGradient(0, 0, 2, 0, 0, 20);
-  halo.addColorStop(0, 'rgba(255,220,110,0.45)');
-  halo.addColorStop(1, 'rgba(255,220,110,0)');
+  halo.addColorStop(0, 'rgba(110,230,255,0.5)');
+  halo.addColorStop(1, 'rgba(110,230,255,0)');
   g.fillStyle = halo;
   g.fillRect(-20, -20, 40, 40);
-  const grad = g.createLinearGradient(-w, 0, w, 0);
-  grad.addColorStop(0, '#b8860b');
-  grad.addColorStop(0.5, '#ffd95e');
-  grad.addColorStop(1, '#e0a818');
+  // faceted gem: top point, shoulders, bottom point
+  const top = -12, sh = -4, bot = 12;
+  const grad = g.createLinearGradient(-w, top, w, bot);
+  grad.addColorStop(0, '#d6f7ff');
+  grad.addColorStop(0.45, '#3fc7e8');
+  grad.addColorStop(1, '#1a7fb0');
   g.fillStyle = grad;
   g.beginPath();
-  g.ellipse(0, 0, w, 11, 0, 0, Math.PI * 2);
+  g.moveTo(0, top);
+  g.lineTo(w, sh);
+  g.lineTo(0, bot);
+  g.lineTo(-w, sh);
+  g.closePath();
   g.fill();
-  g.strokeStyle = 'rgba(120,80,0,0.6)';
-  g.lineWidth = 1.5;
+  // facet lines
+  g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(-w, sh); g.lineTo(w, sh);
+  g.moveTo(0, top); g.lineTo(0, bot);
   g.stroke();
-  if (w > 5) {
-    g.fillStyle = 'rgba(120,80,0,0.5)';
-    g.fillRect(-w * 0.25, -5, w * 0.5, 10);
-  }
+  // bright glint
+  g.fillStyle = 'rgba(255,255,255,0.85)';
+  g.beginPath();
+  g.moveTo(0, top); g.lineTo(w * 0.5, sh - 1); g.lineTo(0, sh + 1);
+  g.closePath();
+  g.fill();
   g.restore();
 }
 
@@ -1032,25 +1204,50 @@ function drawSpikes(g, px, py) {
   g.fillRect(px, py + TILE - 5, TILE, 5);
 }
 
+// Goal totem — a wooden pole topped by a glowing crystal, with a star pennant.
 function drawFlag(g, level, t) {
   if (level.flagX === null) return;
   const x = level.flagX + TILE / 2;
   const top = TILE * 1.5;
   const bottom = level.flagBottom;
-  g.fillStyle = '#cfd6e0';
-  g.fillRect(x - 2, top, 4, bottom - top);
-  g.fillStyle = '#ffd95e';
+  // wooden pole
+  const pg = g.createLinearGradient(x - 3, 0, x + 3, 0);
+  pg.addColorStop(0, '#6b4a2b');
+  pg.addColorStop(0.5, '#a0713c');
+  pg.addColorStop(1, '#5a3e22');
+  g.fillStyle = pg;
+  g.fillRect(x - 3, top, 6, bottom - top);
+  // crystal topper with glow
+  const pulse = 0.6 + 0.4 * Math.sin(t * 4);
+  const halo = g.createRadialGradient(x, top - 8, 2, x, top - 8, 22);
+  halo.addColorStop(0, `rgba(120,230,255,${0.55 * pulse})`);
+  halo.addColorStop(1, 'rgba(120,230,255,0)');
+  g.fillStyle = halo;
+  g.fillRect(x - 22, top - 30, 44, 44);
+  const cg = g.createLinearGradient(x - 6, top - 16, x + 6, top);
+  cg.addColorStop(0, '#d6f7ff');
+  cg.addColorStop(0.5, '#3fc7e8');
+  cg.addColorStop(1, '#1a7fb0');
+  g.fillStyle = cg;
   g.beginPath();
-  g.arc(x, top - 4, 7, 0, Math.PI * 2);
-  g.fill();
-  // waving flag
-  g.fillStyle = '#e8483a';
-  g.beginPath();
-  g.moveTo(x + 2, top + 6);
-  const wave = Math.sin(t * 5) * 5;
-  g.quadraticCurveTo(x + 30, top + 14 + wave, x + 52, top + 22 - wave);
-  g.lineTo(x + 2, top + 38);
+  g.moveTo(x, top - 16); g.lineTo(x + 7, top - 6); g.lineTo(x, top + 4); g.lineTo(x - 7, top - 6);
   g.closePath();
+  g.fill();
+  g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 1; g.stroke();
+  // waving pennant with a star
+  const wave = Math.sin(t * 5) * 5;
+  const tg = g.createLinearGradient(x + 2, 0, x + 50, 0);
+  tg.addColorStop(0, '#17a08c');
+  tg.addColorStop(1, '#0d7a68');
+  g.fillStyle = tg;
+  g.beginPath();
+  g.moveTo(x + 3, top + 10);
+  g.quadraticCurveTo(x + 30, top + 16 + wave, x + 50, top + 22 - wave);
+  g.quadraticCurveTo(x + 30, top + 26 + wave, x + 3, top + 34);
+  g.closePath();
+  g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.9)';
+  starPath(g, x + 20, top + 22, 5, 2.1, t * 0.5);
   g.fill();
 }
 
@@ -1079,7 +1276,7 @@ const game = {
     this.level = new Level(LEVELS[i]);
     this.player = new Player(this.level.startX, this.level.startY);
     this.enemies = this.level.entitySpawns.map(s =>
-      s.type === 'goomba' ? new Goomba(s.x, s.y) : new Koopa(s.x, s.y));
+      s.type === 'thornling' ? new Thornling(s.x, s.y) : new Curlbug(s.x, s.y));
     this.items = [];
     this.particles = new Particles();
     this.bumps = [];
@@ -1115,15 +1312,15 @@ const game = {
         this.coins++;
         this.addScore(200, px + TILE / 2, py - 10);
         AudioEngine.sfx.coin();
-        this.particles.burst(px + TILE / 2, py - 6, 8, { speed: 90, up: 120, life: 0.5, size: 3, color: '#ffd95e', gravity: 300, spark: true });
+        this.particles.burst(px + TILE / 2, py - 6, 8, { speed: 90, up: 120, life: 0.5, size: 3, color: '#7fe6ff', gravity: 300, spark: true });
       } else if (c === 'M') {
-        this.items.push(new Mushroom(px + 4, py - TILE));
+        this.items.push(new Sunfruit(px + 4, py - TILE));
         AudioEngine.sfx.powerup();
       } else {
-        this.items.push(new Dino(px + 2, py - TILE));
+        this.items.push(new Glydon(px + 2, py - TILE));
         AudioEngine.sfx.powerup();
         this.particles.burst(px + TILE / 2, py - 10, 12,
-          { speed: 110, up: 100, life: 0.7, size: 3.5, color: '#7ee787', gravity: 250, spark: true });
+          { speed: 110, up: 100, life: 0.7, size: 3.5, color: '#b9a3ee', gravity: 250, spark: true });
       }
     } else if (c === 'B') {
       if (player.big) {
@@ -1160,7 +1357,7 @@ const game = {
           this.addScore(100, tx * TILE + TILE / 2, ty * TILE);
           AudioEngine.sfx.coin();
           this.particles.burst(tx * TILE + TILE / 2, ty * TILE + TILE / 2, 6,
-            { speed: 80, up: 60, life: 0.45, size: 3, color: '#ffd95e', gravity: 200, spark: true });
+            { speed: 80, up: 60, life: 0.45, size: 3, color: '#7fe6ff', gravity: 200, spark: true });
           if (this.coins % 50 === 0) { this.lives++; AudioEngine.sfx.oneup(); }
         }
       }
@@ -1232,14 +1429,14 @@ const game = {
     for (const it of this.items) {
       it.update(this.level, dt);
       if (rectsOverlap(it.rect, this.player.rect)) {
-        if (it instanceof Dino) {
-          if (!this.player.dino && performance.now() >= it.shyUntil) {
+        if (it instanceof Glydon) {
+          if (!this.player.glydon && performance.now() >= it.shyUntil) {
             it.remove = true;
-            this.player.dino = true;
+            this.player.glydon = true;
             this.addScore(1000, it.x, it.y - 10);
             AudioEngine.sfx.powerup();
             this.particles.burst(this.player.x + this.player.w / 2, this.player.y + this.player.h, 10,
-              { speed: 100, up: 60, life: 0.5, size: 3, color: '#7ee787', gravity: 200, spark: true });
+              { speed: 100, up: 60, life: 0.5, size: 3, color: '#b9a3ee', gravity: 200, spark: true });
           }
         } else {
           it.remove = true;
@@ -1259,7 +1456,7 @@ const game = {
       if (e.dead || e.remove) continue;
 
       // shell vs other enemies
-      if (e instanceof Koopa && e.moving) {
+      if (e instanceof Curlbug && e.moving) {
         for (const o of this.enemies) {
           if (o !== e && !o.dead && !o.remove && rectsOverlap(e.rect, o.rect)) {
             o.remove = true;
@@ -1274,7 +1471,7 @@ const game = {
       if (rectsOverlap(e.rect, this.player.rect) && !this.player.dying) {
         const stomping = this.player.vy > 80 && this.player.y + this.player.h < e.y + e.h * 0.6;
         if (stomping) {
-          if (e instanceof Goomba) {
+          if (e instanceof Thornling) {
             e.stomp();
             this.addScore(100, e.x, e.y);
           } else {
@@ -1285,7 +1482,7 @@ const game = {
           AudioEngine.sfx.stomp();
           this.spawnDust(e.x + e.w / 2, e.y, 5);
           this.shake = 0.1;
-        } else if (e instanceof Koopa && e.shell && !e.moving) {
+        } else if (e instanceof Curlbug && e.shell && !e.moving) {
           e.kick(this.player);
         } else {
           this.player.hurt(this);
@@ -1408,7 +1605,7 @@ const game = {
     g.textAlign = 'left';
     g.textBaseline = 'middle';
     g.fillText(`SCORE  ${String(this.score).padStart(6, '0')}`, 24, 23);
-    g.fillText(`🪙 × ${this.coins}`, 250, 23);
+    g.fillText(`💎 × ${this.coins}`, 250, 23);
     g.fillText(`♥ × ${this.lives}`, 380, 23);
     g.textAlign = 'center';
     g.fillText(`WORLD ${this.levelIndex + 1} — ${this.level.def.name}`, W / 2 + 60, 23);

@@ -4,11 +4,11 @@
 
 [![Play now](https://img.shields.io/badge/▶_Play_now-Super_Nico_World-e8483a?style=for-the-badge)](https://nicholasaryelferreira.github.io/super-nico-world/)
 
-A polished Mario-inspired platformer that runs entirely in your browser — no installs, no downloads, no asset files. All graphics are rendered live on an HTML5 canvas (parallax skies, particles, soft shadows, screen shake) and all music and sound effects are synthesized in real time with the Web Audio API.
+A polished retro-style platformer with an all-original cast, art, and soundtrack that runs entirely in your browser — no installs, no downloads, no asset files. All graphics are rendered live on an HTML5 canvas (parallax skies, particles, soft shadows, screen shake) and all music and sound effects are synthesized in real time with the Web Audio API.
 
 ## Screenshots
 
-![Riding the flying dino](screenshots/dino-flight.png)
+![Riding Glydon, the flying glider](screenshots/glydon-flight.png)
 
 | World 1 — Green Hills | World 2 — Cavern Climb | World 3 — Sunset Fortress |
 |---|---|---|
@@ -45,9 +45,9 @@ A polished Mario-inspired platformer that runs entirely in your browser — no i
 
 - **3 worlds**: Green Hills, Cavern Climb, Sunset Fortress — each with its own sky palette.
 - **Tight platforming feel**: coyote time, jump buffering, variable jump height, squash & stretch.
-- **Enemies**: goombas to stomp and koopas whose shells you can kick into other enemies.
-- **Power-ups**: question blocks hide coins and mushrooms; grow big to break bricks. Every 50 coins = extra life.
-- **🦖 Rideable flying dino**: every world hides a spotted-egg block. Crack it open, hop on the dino, and **hold Jump in mid-air to fly**. If you get hit, the dino runs off — chase it down to remount!
+- **Original enemies**: spiky **Thornlings** to stomp and armored **Curlbugs** that curl into rolling balls you can kick into other enemies.
+- **Power-ups**: star prize blocks hide crystal gems and glowing **Sunfruit**; grow big to break bricks. Every 50 gems = extra life.
+- **🪽 Glydon, the rideable sky-glider**: every world hides a speckled-egg block. Crack it open, hop on Glydon, and **hold Jump in mid-air to fly**. If you get hit, Glydon runs off — chase it down to remount!
 - **Fair-by-design levels**: built with a level generator that guarantees every gap and climb is within jump range, verified by an automated playthrough bot.
 - **Hazards**: spikes, pits, and a countdown timer.
 - **Procedural audio**: a chiptune overworld theme plus jump/coin/stomp/power-up/victory sounds, all generated at runtime.

@@ -5,11 +5,11 @@
 
    Legend:
      #  ground          X  solid stone     B  brick
-     ?  question (coin) M  question (mushroom)
-     Y  question (dino egg — rideable flying dino!)
-     C  floating coin   =  wooden platform (one-way)
-     T  pipe top        |  pipe body       ^  spikes (solid, hurt on top)
-     F  flagpole        g  goomba          k  koopa     S  player start
+     ?  prize block (gem)  M  prize block (Sunfruit)
+     Y  prize block (Glydon egg — rideable flying creature!)
+     C  floating gem    =  wooden platform (one-way)
+     T  pillar cap      |  pillar body     ^  spikes (solid, hurt on top)
+     F  goal totem      g  Thornling       k  Curlbug   S  player start
 */
 
 const LevelBuilder = (() => {
@@ -44,7 +44,7 @@ const LEVELS = (() => {
   gap(g1, 30, 32);                       // 3-tile gap
   plat(g1, 34, 38, 7);
   coins(g1, 35, 37, 5);
-  put(g1, 43, 6, 'BYB');                 // dino egg block!
+  put(g1, 43, 6, 'BYB');                 // Glydon egg block!
   put(g1, 50, 9, 'g'); put(g1, 53, 9, 'g'); put(g1, 57, 9, 'k');
   put(g1, 60, 6, 'B?BM?B');
   coins(g1, 61, 64, 4);
@@ -74,7 +74,7 @@ const LEVELS = (() => {
   gap(g2, 40, 42);                       // 3-tile gap
   vput(g2, 45, 8, 9, 'X'); vput(g2, 46, 8, 9, 'X'); vput(g2, 47, 8, 9, 'X');
   coins(g2, 45, 47, 6);
-  put(g2, 52, 6, 'Y');                   // dino egg
+  put(g2, 52, 6, 'Y');                   // Glydon egg
   plat(g2, 57, 61, 7);                   // bridge over spikes
   spikes(g2, 58, 60);
   put(g2, 64, 9, 'k'); put(g2, 67, 9, 'g'); put(g2, 69, 9, 'g');
@@ -105,7 +105,7 @@ const LEVELS = (() => {
   put(g3, 42, 6, 'BMB');
   put(g3, 46, 9, 'g'); put(g3, 49, 9, 'g'); put(g3, 52, 9, 'k');
   plat(g3, 55, 59, 7); coins(g3, 56, 58, 5);
-  put(g3, 62, 6, 'Y');                   // dino egg
+  put(g3, 62, 6, 'Y');                   // Glydon egg
   gap(g3, 67, 69);                       // 3-tile gap (or just fly over it!)
   put(g3, 73, 6, 'B?B?B'); coins(g3, 74, 76, 4);
   vput(g3, 78, 9, 9, 'X');               // staircase over the fortress wall

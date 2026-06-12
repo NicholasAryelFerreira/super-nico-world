@@ -95,26 +95,37 @@ const AudioEngine = (() => {
 
   /* ---------- sound effects ---------- */
 
+  // All effects below are original synthesized designs (no resemblance to any
+  // existing game's signature jingles).
   const sfx = {
-    jump()    { tone({ freq: 330, slide: 420, type: 'square', dur: 0.22, vol: 0.16, send: 0.1 }); },
-    stomp()   { tone({ freq: 220, slide: -160, type: 'triangle', dur: 0.18, vol: 0.3 });
-                noise({ dur: 0.12, vol: 0.18, freq: 500, q: 0.8 }); },
-    coin()    { tone({ freq: 988, type: 'square', dur: 0.08, vol: 0.14, send: 0.25 });
-                tone({ freq: 1319, type: 'square', dur: 0.32, vol: 0.14, when: 0.08, send: 0.25 }); },
-    powerup() { [392, 523, 659, 784, 1047, 1319].forEach((f, i) =>
-                  tone({ freq: f, type: 'square', dur: 0.12, vol: 0.13, when: i * 0.07, send: 0.2 })); },
-    hurt()    { tone({ freq: 440, slide: -330, type: 'sawtooth', dur: 0.35, vol: 0.2 });
-                noise({ dur: 0.25, vol: 0.12, freq: 300 }); },
-    bump()    { tone({ freq: 110, slide: -40, type: 'triangle', dur: 0.1, vol: 0.25 }); },
-    break_()  { noise({ dur: 0.3, vol: 0.3, freq: 900, q: 0.6 });
-                tone({ freq: 180, slide: -120, type: 'triangle', dur: 0.2, vol: 0.2 }); },
-    die()     { [494, 466, 440, 415, 392, 330, 262, 196].forEach((f, i) =>
-                  tone({ freq: f, type: 'square', dur: 0.16, vol: 0.15, when: 0.1 + i * 0.13 })); },
-    win()     { [523, 587, 659, 784, 880, 1047, 1175, 1319].forEach((f, i) =>
-                  tone({ freq: f, type: 'square', dur: 0.22, vol: 0.14, when: i * 0.12, send: 0.3 })); },
-    kick()    { tone({ freq: 600, slide: 300, type: 'square', dur: 0.1, vol: 0.18 }); },
-    oneup()   { [659, 784, 1319, 1047, 1175, 1568].forEach((f, i) =>
-                  tone({ freq: f, type: 'square', dur: 0.14, vol: 0.14, when: i * 0.09, send: 0.3 })); },
+    jump()    { tone({ freq: 300, slide: 360, type: 'triangle', dur: 0.2, vol: 0.18, send: 0.1 });
+                tone({ freq: 600, slide: 720, type: 'sine', dur: 0.12, vol: 0.06 }); },
+    stomp()   { tone({ freq: 180, slide: -120, type: 'sine', dur: 0.16, vol: 0.32 });
+                noise({ dur: 0.1, vol: 0.16, freq: 420, q: 0.7 }); },
+    // gem pickup: glassy crystalline chime (sine voices + sparkle)
+    coin()    { tone({ freq: 1318, type: 'sine', dur: 0.1, vol: 0.16, send: 0.3 });
+                tone({ freq: 1760, type: 'sine', dur: 0.28, vol: 0.13, when: 0.07, send: 0.3 });
+                tone({ freq: 2637, type: 'sine', dur: 0.18, vol: 0.05, when: 0.07 });
+                noise({ dur: 0.05, vol: 0.04, freq: 9000, q: 2, when: 0.02 }); },
+    // power fruit: warm whole-tone bloom upward
+    powerup() { [440, 554, 698, 880, 1109, 1397].forEach((f, i) =>
+                  tone({ freq: f, type: 'triangle', dur: 0.13, vol: 0.13, when: i * 0.06, send: 0.2 })); },
+    hurt()    { tone({ freq: 392, slide: -260, type: 'sawtooth', dur: 0.3, vol: 0.2 });
+                noise({ dur: 0.22, vol: 0.12, freq: 280 }); },
+    bump()    { tone({ freq: 120, slide: -40, type: 'triangle', dur: 0.1, vol: 0.25 }); },
+    break_()  { noise({ dur: 0.3, vol: 0.3, freq: 850, q: 0.5 });
+                tone({ freq: 170, slide: -110, type: 'triangle', dur: 0.2, vol: 0.2 }); },
+    // defeat: a soft falling minor arpeggio with a low settle (original)
+    die()     { [659, 523, 440, 330, 247].forEach((f, i) =>
+                  tone({ freq: f, type: 'triangle', dur: 0.22, vol: 0.16, when: 0.1 + i * 0.18, send: 0.15 }));
+                tone({ freq: 110, slide: -40, type: 'sine', dur: 0.5, vol: 0.18, when: 1.05 }); },
+    // course clear: bright original rising fanfare
+    win()     { [[523,0],[659,0.12],[784,0.24],[1047,0.36],[988,0.56],[1175,0.68],[1568,0.8]]
+                  .forEach(([f, w]) => tone({ freq: f, type: 'triangle', dur: 0.3, vol: 0.15, when: w, send: 0.3 })); },
+    kick()    { tone({ freq: 520, slide: 260, type: 'square', dur: 0.1, vol: 0.18 }); },
+    // extra life: a quick lilting original up-flourish
+    oneup()   { [587, 880, 784, 1175, 1568].forEach((f, i) =>
+                  tone({ freq: f, type: 'triangle', dur: 0.14, vol: 0.14, when: i * 0.1, send: 0.3 })); },
   };
 
   /* ---------- music sequencer ----------
@@ -125,20 +136,21 @@ const AudioEngine = (() => {
               G3:196, A3:220, B3:247, C3:131, D3:147, E3:165, F3:175,
               G2:98, A2:110, C2:65, D2:73, E2:82, F2:87 };
 
+  // Original "Nico World" overworld theme — an upbeat A-minor/C-major loop.
   // 4 bars of 16 sixteenth-notes. 0 = rest.
   const melody = [
-    N.E5,0,N.E5,0, 0,N.E5,0,N.C5, N.E5,0,N.G5,0, 0,0,N.G4,0,
-    N.C5,0,0,N.G4, 0,0,N.E4,0,  0,N.A4,0,N.B4, 0,N.A4,N.A4,0,
-    N.G4,N.E5,0,N.G5, N.A5,0,N.F5,N.G5, 0,N.E5,0,N.C5, N.D5,N.B4,0,0,
-    N.C5,0,N.G4,0, N.E4,0,N.A4,0, N.B4,0,N.A4,0, N.G4,0,0,0,
+    N.A4,0,N.C5,0, N.E5,0,N.D5,0, N.C5,0,N.E5,0, N.A5,0,0,0,
+    N.G5,0,N.E5,0, N.C5,0,N.D5,0, N.E5,0,0,N.E5, N.D5,0,N.B4,0,
+    N.C5,0,N.E5,0, N.G5,0,N.F5,0, N.E5,0,N.C5,0, N.D5,0,0,0,
+    N.B4,0,N.D5,0, N.G4,0,N.B4,0, N.A4,0,0,N.C5, N.B4,0,N.A4,0,
   ];
   const bass = [
-    N.C3,0,0,0, N.G2,0,0,0, N.C3,0,0,0, N.G2,0,N.E3,0,
-    N.A2,0,0,0, N.E3,0,0,0, N.F2,0,N.F3,0, N.G2,0,0,0,
-    N.C3,0,N.E3,0, N.F3,0,N.D3,0, N.G2,0,N.B3,0, N.G3,0,N.D3,0,
-    N.C3,0,N.G2,0, N.A2,0,N.F2,0, N.G2,0,N.G2,0, N.C3,0,0,0,
+    N.A2,0,0,0, N.E3,0,0,0, N.A2,0,0,0, N.C3,0,N.E3,0,
+    N.A2,0,0,0, N.E3,0,0,0, N.G2,0,0,0, N.D3,0,0,0,
+    N.C3,0,0,0, N.G3,0,0,0, N.F2,0,0,0, N.C3,0,0,0,
+    N.G2,0,0,0, N.D3,0,0,0, N.A2,0,0,0, N.E3,0,N.G2,0,
   ];
-  const TEMPO = 168;           // bpm
+  const TEMPO = 158;           // bpm
   const STEP = 60 / TEMPO / 4; // one sixteenth note
 
   let step = 0;
