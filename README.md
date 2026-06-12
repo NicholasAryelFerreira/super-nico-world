@@ -1,5 +1,9 @@
 # Super Nico World 🍄
 
+### [▶ Play now in your browser](https://nicholasaryelferreira.github.io/super-nico-world/)
+
+[![Play now](https://img.shields.io/badge/▶_Play_now-Super_Nico_World-e8483a?style=for-the-badge)](https://nicholasaryelferreira.github.io/super-nico-world/)
+
 A polished Mario-inspired platformer that runs entirely in your browser — no installs, no downloads, no asset files. All graphics are rendered live on an HTML5 canvas (parallax skies, particles, soft shadows, screen shake) and all music and sound effects are synthesized in real time with the Web Audio API.
 
 ## Screenshots
