@@ -53,3 +53,7 @@ A polished retro-style platformer with an all-original cast, art, and soundtrack
 - **Procedural audio**: a chiptune overworld theme plus jump/coin/stomp/power-up/victory sounds, all generated at runtime.
 
 Reach the flag at the end of each world. Good luck! 🚩
+
+## License
+
+Released under the [MIT License](LICENSE) — © 2026 Nicholas Aryel Ferreira.
